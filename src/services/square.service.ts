@@ -1,0 +1,114 @@
+import { SquareClient, Booking } from 'square';
+import { config } from '../config';
+import { logger } from '../utils/logger';
+
+const client = new SquareClient({
+  token: config.square.accessToken,
+  environment: 'production',
+});
+
+export interface SquareBookingParams {
+  startAt: string; // ISO 8601
+  serviceVariationId: string;
+  serviceVariationVersion: number;
+  teamMemberId: string;
+  customerNote?: string;
+  customerId?: string;
+}
+
+export async function createBooking(params: SquareBookingParams) {
+  logger.info('Creating Square booking', { startAt: params.startAt });
+
+  const response = await client.bookings.create({
+    booking: {
+      startAt: params.startAt,
+      locationId: config.square.locationId,
+      appointmentSegments: [
+        {
+          serviceVariationId: params.serviceVariationId,
+          serviceVariationVersion: BigInt(params.serviceVariationVersion),
+          teamMemberId: params.teamMemberId,
+        },
+      ],
+      customerId: params.customerId,
+      customerNote: params.customerNote,
+    },
+    idempotencyKey: `ghl-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  });
+
+  logger.info('Square booking created', { bookingId: response.booking?.id });
+  return response.booking;
+}
+
+export async function cancelBooking(bookingId: string) {
+  logger.info('Cancelling Square booking', { bookingId });
+
+  const existing = await client.bookings.get({ bookingId });
+  const version = existing.booking?.version;
+
+  const response = await client.bookings.cancel({
+    bookingId,
+    bookingVersion: version ? Number(version) : undefined,
+  });
+
+  logger.info('Square booking cancelled', { bookingId });
+  return response.booking;
+}
+
+export async function getBooking(bookingId: string) {
+  const response = await client.bookings.get({ bookingId });
+  return response.booking;
+}
+
+export async function listRecentBookings(startAtMin: string, startAtMax: string) {
+  const bookings: Booking[] = [];
+
+  const page = await client.bookings.list({
+    locationId: config.square.locationId,
+    startAtMin,
+    startAtMax,
+  });
+
+  for await (const booking of page) {
+    bookings.push(booking);
+  }
+
+  return bookings;
+}
+
+export async function findOrCreateCustomer(email: string, name: string, phone?: string) {
+  // Search by email first
+  const searchResult = await client.customers.search({
+    query: {
+      filter: {
+        emailAddress: { exact: email },
+      },
+    },
+  });
+
+  if (searchResult.customers && searchResult.customers.length > 0) {
+    logger.info('Found existing Square customer', { customerId: searchResult.customers[0].id });
+    return searchResult.customers[0];
+  }
+
+  // Create new customer
+  const nameParts = name.split(' ');
+  const givenName = nameParts[0] || '';
+  const familyName = nameParts.slice(1).join(' ') || '';
+
+  const createResult = await client.customers.create({
+    givenName,
+    familyName,
+    emailAddress: email,
+    phoneNumber: phone,
+    idempotencyKey: `ghl-cust-${email}-${Date.now()}`,
+  });
+
+  logger.info('Created new Square customer', { customerId: createResult.customer?.id });
+  return createResult.customer;
+}
+
+export async function getServiceVariation(serviceVariationId: string) {
+  const response = await client.catalog.object.get({ objectId: serviceVariationId });
+  return response.object;
+}

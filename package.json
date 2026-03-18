@@ -1,0 +1,31 @@
+{
+  "name": "square-ghl-sync",
+  "version": "1.0.0",
+  "description": "Middleware to sync Square Appointments with Go High Level calendar",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "better-sqlite3": "^11.0.0",
+    "express": "^4.21.0",
+    "node-cron": "^3.0.3",
+    "square": "^44.0.1",
+    "winston": "^3.14.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/express": "^4.17.0",
+    "@types/node": "^20.0.0",
+    "@types/node-cron": "^3.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0"
+  }
+}
