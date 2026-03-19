@@ -58,7 +58,10 @@ export async function createAppointment(params: GhlAppointmentParams) {
 export async function deleteEvent(eventId: string) {
   logger.info('Deleting GHL event', { eventId });
 
-  await api.delete(`/calendars/events/appointments/${eventId}`);
+  await api.delete(`/calendars/events/${eventId}`, {
+    headers: { Version: '2021-04-15' },
+    data: {},
+  });
 
   logger.info('GHL event deleted', { eventId });
 }
@@ -82,6 +85,20 @@ export async function listEvents(startTime: string, endTime: string) {
       calendarId: config.ghl.calendarId,
       startTime,
       endTime,
+    },
+  });
+
+  return response.data?.events || [];
+}
+
+export async function listBlockedSlots(startTimeMs: number, endTimeMs: number) {
+  const response = await api.get('/calendars/blocked-slots', {
+    headers: { Version: '2021-04-15' },
+    params: {
+      locationId: config.ghl.locationId,
+      userId: config.ghl.userId,
+      startTime: startTimeMs.toString(),
+      endTime: endTimeMs.toString(),
     },
   });
 

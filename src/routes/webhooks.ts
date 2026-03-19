@@ -62,4 +62,54 @@ router.post('/debug/reconcile', async (_req, res) => {
   }
 });
 
+// List GHL block slots (temporary — for cleanup)
+router.get('/debug/ghl-block-slots', async (_req, res) => {
+  try {
+    const ghlService = await import('../services/ghl.service');
+    const now = Date.now();
+    const slots = await ghlService.listBlockedSlots(
+      now - 30 * 24 * 60 * 60 * 1000, // 30 days ago
+      now + 30 * 24 * 60 * 60 * 1000,  // 30 days ahead
+    );
+    res.json({ ok: true, count: slots.length, slots });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, message: error?.message || String(error), data: error?.response?.data });
+  }
+});
+
+// Delete a GHL event by ID (temporary — for cleanup)
+router.delete('/debug/ghl-event/:eventId', async (req, res) => {
+  try {
+    const ghlService = await import('../services/ghl.service');
+    await ghlService.deleteEvent(req.params.eventId);
+    res.json({ ok: true, deleted: req.params.eventId });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, message: error?.message || String(error), data: error?.response?.data });
+  }
+});
+
+// Delete ALL GHL block slots in range (temporary — for cleanup)
+router.delete('/debug/ghl-block-slots', async (_req, res) => {
+  try {
+    const ghlService = await import('../services/ghl.service');
+    const now = Date.now();
+    const slots = await ghlService.listBlockedSlots(
+      now - 30 * 24 * 60 * 60 * 1000,
+      now + 30 * 24 * 60 * 60 * 1000,
+    );
+    const results: { id: string; ok: boolean; error?: string }[] = [];
+    for (const slot of slots) {
+      try {
+        await ghlService.deleteEvent(slot.id);
+        results.push({ id: slot.id, ok: true });
+      } catch (err: any) {
+        results.push({ id: slot.id, ok: false, error: err?.message || String(err) });
+      }
+    }
+    res.json({ ok: true, total: slots.length, results });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, message: error?.message || String(error), data: error?.response?.data });
+  }
+});
+
 export default router;
