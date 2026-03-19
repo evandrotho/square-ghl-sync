@@ -85,14 +85,13 @@ export async function handleGhlCreated(req: Request, res: Response) {
     logger.info('GHL->Square sync complete', { appointmentId, squareBookingId: booking?.id });
     res.status(200).json({ ok: true, squareBookingId: booking?.id });
   } catch (error: any) {
-    logger.error('Error in GHL->Square sync', { error, appointmentId });
-    res.status(500).json({
-      error: 'Internal error',
+    logger.error('Error in GHL->Square sync', {
+      appointmentId,
       message: error?.message || String(error),
       statusCode: error?.statusCode,
       errors: error?.errors,
-      body: error?.body,
     });
+    res.status(500).json({ error: 'Internal error' });
   }
 }
 
