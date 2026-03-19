@@ -105,4 +105,25 @@ router.post('/backfill', async (_req, res) => {
   }
 });
 
+// === TEMPORARY: Check GHL block slots status ===
+router.get('/check-ghl', async (_req, res) => {
+  try {
+    const ghlService = await import('../services/ghl.service');
+    const now = Date.now();
+    const slots = await ghlService.listBlockedSlots(
+      now - 7 * 24 * 60 * 60 * 1000,
+      now + 90 * 24 * 60 * 60 * 1000,
+    );
+    // Group by date
+    const byDate: Record<string, number> = {};
+    for (const slot of slots) {
+      const date = new Date(slot.startTime || slot.start_time || slot.startDate).toISOString().split('T')[0];
+      byDate[date] = (byDate[date] || 0) + 1;
+    }
+    res.json({ ok: true, totalSlots: slots.length, byDate, sampleSlots: slots.slice(0, 5) });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, message: err?.message || String(err), data: (err as any)?.response?.data });
+  }
+});
+
 export default router;
