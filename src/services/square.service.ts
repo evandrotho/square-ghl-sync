@@ -1,11 +1,11 @@
-import { SquareClient, Booking } from 'square';
+import { SquareClient, SquareEnvironment, Booking } from 'square';
 import fetch from 'node-fetch';
 import { config } from '../config';
 import { logger } from '../utils/logger';
 
 const client = new SquareClient({
   token: config.square.accessToken,
-  environment: 'production',
+  environment: SquareEnvironment.Production,
   fetcher: fetch as any,
 });
 
