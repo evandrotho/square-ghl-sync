@@ -23,15 +23,12 @@ export interface GhlAppointmentParams {
 export async function createBlockSlot(params: GhlAppointmentParams) {
   logger.info('Creating GHL block slot', { startTime: params.startTime });
 
-  const response = await api.post('/calendars/events/appointments', {
-    calendarId: config.ghl.calendarId,
+  const response = await api.post('/calendars/events/block-slots', {
     locationId: config.ghl.locationId,
     title: params.title,
     startTime: params.startTime,
     endTime: params.endTime,
     assignedUserId: config.ghl.userId,
-    appointmentStatus: 'new',
-    toNotify: false,
   });
 
   logger.info('GHL block slot created', { eventId: response.data?.id });
