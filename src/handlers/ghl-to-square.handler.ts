@@ -7,10 +7,9 @@ import * as ghlService from '../services/ghl.service';
 import { createMapping, findByGhlId, deactivateByGhlId } from '../db';
 import { config } from '../config';
 
-// Default service variation + version (first bookable service from Square)
-// These can be overridden by mapping logic if multiple services exist
+// Default service variation (first bookable service from Square)
+// Version is fetched dynamically from Square API to avoid stale values
 const DEFAULT_SERVICE_VARIATION_ID = 'PPUJOIASO3EVY2GD5FZDVMWU'; // Essential Full Grooming
-const DEFAULT_SERVICE_VARIATION_VERSION = 1764962553375;
 const DEFAULT_TEAM_MEMBER_ID = 'TMfrSx3qqoVo0r7T'; // Essential Groomer 1
 
 export async function handleGhlCreated(req: Request, res: Response) {
@@ -55,12 +54,18 @@ export async function handleGhlCreated(req: Request, res: Response) {
       customerId = customer?.id;
     }
 
+    // Fetch current service variation version from Square (avoids stale hardcoded version)
+    const currentVersion = await withRetry(
+      () => squareService.getServiceVariationVersion(DEFAULT_SERVICE_VARIATION_ID),
+      'Get service variation version'
+    );
+
     // Create real booking in Square
     const booking = await withRetry(
       () => squareService.createBooking({
         startAt: new Date(startTime).toISOString(),
         serviceVariationId: DEFAULT_SERVICE_VARIATION_ID,
-        serviceVariationVersion: DEFAULT_SERVICE_VARIATION_VERSION,
+        serviceVariationVersion: currentVersion,
         teamMemberId: DEFAULT_TEAM_MEMBER_ID,
         customerId,
         customerNote: `Booked via GHL — ${contactName}`,
@@ -148,10 +153,13 @@ export async function handleGhlUpdated(req: Request, res: Response) {
           customerId = customer?.id;
         }
 
+        const serviceVarId = mapping.square_service_variation_id || DEFAULT_SERVICE_VARIATION_ID;
+        const updatedVersion = await squareService.getServiceVariationVersion(serviceVarId);
+
         const newBooking = await squareService.createBooking({
           startAt: new Date(startTime).toISOString(),
-          serviceVariationId: mapping.square_service_variation_id || DEFAULT_SERVICE_VARIATION_ID,
-          serviceVariationVersion: DEFAULT_SERVICE_VARIATION_VERSION,
+          serviceVariationId: serviceVarId,
+          serviceVariationVersion: updatedVersion,
           teamMemberId: mapping.square_team_member_id || DEFAULT_TEAM_MEMBER_ID,
           customerId,
           customerNote: `Rescheduled via GHL — ${contactName}`,

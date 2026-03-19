@@ -12,7 +12,7 @@ const client = new SquareClient({
 export interface SquareBookingParams {
   startAt: string; // ISO 8601
   serviceVariationId: string;
-  serviceVariationVersion: number;
+  serviceVariationVersion: bigint | number;
   teamMemberId: string;
   customerNote?: string;
   customerId?: string;
@@ -113,4 +113,12 @@ export async function findOrCreateCustomer(email: string, name: string, phone?: 
 export async function getServiceVariation(serviceVariationId: string) {
   const response = await client.catalog.object.get({ objectId: serviceVariationId });
   return response.object;
+}
+
+export async function getServiceVariationVersion(serviceVariationId: string): Promise<bigint> {
+  const obj = await getServiceVariation(serviceVariationId);
+  if (!obj?.version) {
+    throw new Error(`Service variation ${serviceVariationId} not found or has no version`);
+  }
+  return obj.version;
 }
