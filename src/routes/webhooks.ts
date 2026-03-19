@@ -28,7 +28,20 @@ router.post('/e2e-test', async (_req, res) => {
   const ghlService = await import('../services/ghl.service');
   const db = await import('../db');
 
-  const testDate = new Date(Date.now() + 7 * 24 * 60 * 60_000); // 1 week from now
+  // Create or find a test customer (Square requires customer_id for bookings)
+  let testCustomerId: string | undefined;
+  try {
+    const customer = await squareService.findOrCreateCustomer(
+      'e2e-test@square-ghl-sync.test',
+      'E2E Test Customer'
+    );
+    testCustomerId = customer?.id;
+  } catch (err: any) {
+    res.json({ allPassed: false, results: [{ test: 'Setup: create test customer', status: 'FAIL', details: err?.message }] });
+    return;
+  }
+
+  const testDate = new Date(Date.now() + 7 * 24 * 60 * 60_000);
   testDate.setHours(10, 0, 0, 0);
   const startAt = testDate.toISOString();
 
@@ -41,6 +54,7 @@ router.post('/e2e-test', async (_req, res) => {
       serviceVariationId: 'PPUJOIASO3EVY2GD5FZDVMWU',
       serviceVariationVersion: version,
       teamMemberId: 'TMfrSx3qqoVo0r7T',
+      customerId: testCustomerId,
       customerNote: 'E2E Test — GHL to Square',
     });
     ghlSquareBookingId = booking?.id;
@@ -77,6 +91,7 @@ router.post('/e2e-test', async (_req, res) => {
       serviceVariationId: 'PPUJOIASO3EVY2GD5FZDVMWU',
       serviceVariationVersion: version,
       teamMemberId: 'TMfrSx3qqoVo0r7T',
+      customerId: testCustomerId,
       customerNote: 'E2E Test — Square to GHL',
     });
     squareTestBookingId = booking?.id;

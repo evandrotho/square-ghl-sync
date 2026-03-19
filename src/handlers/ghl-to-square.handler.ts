@@ -44,15 +44,13 @@ export async function handleGhlCreated(req: Request, res: Response) {
       return res.status(200).json({ ok: true, message: 'No start time' });
     }
 
-    // Find or create customer in Square
-    let customerId: string | undefined;
-    if (contactEmail) {
-      const customer = await withRetry(
-        () => squareService.findOrCreateCustomer(contactEmail, contactName, contactPhone),
-        'Find/create Square customer'
-      );
-      customerId = customer?.id;
-    }
+    // Find or create customer in Square (required by Square Bookings API)
+    const customerEmail = contactEmail || `ghl-${appointmentId}@sync.placeholder`;
+    const customer = await withRetry(
+      () => squareService.findOrCreateCustomer(customerEmail, contactName, contactPhone),
+      'Find/create Square customer'
+    );
+    const customerId = customer?.id;
 
     // Fetch current service variation version from Square (avoids stale hardcoded version)
     const currentVersion = await withRetry(
@@ -152,11 +150,9 @@ export async function handleGhlUpdated(req: Request, res: Response) {
       const contactEmail = body.contact_email || body.email || '';
 
       if (startTime) {
-        let customerId: string | undefined;
-        if (contactEmail) {
-          const customer = await squareService.findOrCreateCustomer(contactEmail, contactName);
-          customerId = customer?.id;
-        }
+        const customerEmail = contactEmail || `ghl-${appointmentId}@sync.placeholder`;
+        const customer = await squareService.findOrCreateCustomer(customerEmail, contactName);
+        const customerId = customer?.id;
 
         const serviceVarId = mapping.square_service_variation_id || DEFAULT_SERVICE_VARIATION_ID;
         const updatedVersion = await squareService.getServiceVariationVersion(serviceVarId);
