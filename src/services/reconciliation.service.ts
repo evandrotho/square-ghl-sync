@@ -13,7 +13,20 @@ export async function reconcile() {
   try {
     const now = new Date();
 
-    // Fetch bookings in 30-day chunks (Square API limits to 31 days)
+    // 1. Get existing GHL block slots to check for duplicates by title
+    //    Title format: [Square:bookingId] note
+    let existingTitles: Set<string>;
+    try {
+      const existingSlots = await ghlService.listBlockedSlots(
+        now.getTime() - 7 * 24 * 60 * 60_000,
+        now.getTime() + 120 * 24 * 60 * 60_000,
+      );
+      existingTitles = new Set(existingSlots.map((s: any) => s.title));
+    } catch {
+      existingTitles = new Set();
+    }
+
+    // 2. Fetch bookings in 30-day chunks (Square API limits to 31 days)
     const allBookings: Booking[] = [];
     const startOffset = -1; // 1 day ago
     for (let offset = startOffset; offset < TOTAL_DAYS; offset += CHUNK_DAYS) {
@@ -32,16 +45,17 @@ export async function reconcile() {
       if (!booking.id) continue;
       if (booking.status === 'CANCELLED_BY_CUSTOMER' || booking.status === 'CANCELLED_BY_SELLER') continue;
 
-      const existing = findBySquareId(booking.id);
-      if (existing) continue;
+      // Skip if already mapped in local DB
+      if (findBySquareId(booking.id)) continue;
 
-      // Unmapped booking — create block slot in GHL
+      // Skip if block slot already exists in GHL (dedup by title with booking ID)
+      const title = `[Square:${booking.id}] ${booking.customerNote || 'Booking'}`;
+      if (existingTitles.has(title)) continue;
+
       const startAt = booking.startAt;
       const segment = booking.appointmentSegments?.[0];
       const durationMinutes = segment ? Number(segment.durationMinutes || 60) : 60;
       const endAt = new Date(new Date(startAt!).getTime() + durationMinutes * 60_000).toISOString();
-
-      const title = `[Square] ${booking.customerNote || 'Booking'}`;
 
       try {
         const ghlEvent = await ghlService.createBlockSlot({
@@ -59,6 +73,7 @@ export async function reconcile() {
           square_team_member_id: segment?.teamMemberId,
         });
 
+        existingTitles.add(title);
         synced++;
       } catch (error) {
         logger.error('Reconciliation: failed to sync booking', { bookingId: booking.id, error });

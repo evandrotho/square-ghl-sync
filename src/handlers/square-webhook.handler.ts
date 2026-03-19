@@ -72,8 +72,8 @@ async function handleBookingCreated(bookingId: string) {
   const durationMinutes = segment ? Number(segment.durationMinutes || 60) : 60;
   const endAt = new Date(new Date(startAt!).getTime() + durationMinutes * 60_000).toISOString();
 
-  const customerName = booking.customerNote || 'Square Booking';
-  const title = `[Square] ${customerName}`;
+  const customerName = booking.customerNote || 'Booking';
+  const title = `[Square:${bookingId}] ${customerName}`;
 
   const ghlEvent = await withRetry(
     () => ghlService.createBlockSlot({ title, startTime: startAt!, endTime: endAt }),
