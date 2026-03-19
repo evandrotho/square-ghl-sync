@@ -28,20 +28,29 @@ router.post('/backfill', async (_req, res) => {
     const ghlService = await import('../services/ghl.service');
     const db = await import('../db');
     const { logger } = await import('../utils/logger');
-
     const now = new Date();
-    // Backfill: from today forward up to 90 days
-    const startAtMin = now.toISOString();
-    const startAtMax = new Date(now.getTime() + 90 * 24 * 60 * 60_000).toISOString();
+    const CHUNK_DAYS = 30; // Square API max is 31 days per request
+    const TOTAL_DAYS = 90;
 
-    const bookings = await squareService.listRecentBookings(startAtMin, startAtMax);
+    // Collect all bookings across multiple 30-day chunks
+    const allBookings: any[] = [];
+    for (let offset = 0; offset < TOTAL_DAYS; offset += CHUNK_DAYS) {
+      const chunkStart = new Date(now.getTime() + offset * 24 * 60 * 60_000);
+      const chunkEnd = new Date(now.getTime() + Math.min(offset + CHUNK_DAYS, TOTAL_DAYS) * 24 * 60 * 60_000);
+      try {
+        const chunk = await squareService.listRecentBookings(chunkStart.toISOString(), chunkEnd.toISOString());
+        allBookings.push(...chunk);
+      } catch (err: any) {
+        logger.warn('Backfill: chunk failed', { offset, message: err?.message });
+      }
+    }
 
     let synced = 0;
     let skipped = 0;
     let cancelled = 0;
     const errors: string[] = [];
 
-    for (const booking of bookings) {
+    for (const booking of allBookings) {
       if (!booking.id) continue;
       if (booking.status === 'CANCELLED_BY_CUSTOMER' || booking.status === 'CANCELLED_BY_SELLER' || booking.status === 'DECLINED') {
         cancelled++;
@@ -85,7 +94,7 @@ router.post('/backfill', async (_req, res) => {
 
     res.json({
       ok: true,
-      totalBookings: bookings.length,
+      totalBookings: allBookings.length,
       synced,
       skipped,
       cancelled,

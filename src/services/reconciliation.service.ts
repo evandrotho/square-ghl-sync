@@ -1,20 +1,34 @@
+import { Booking } from 'square';
 import { logger } from '../utils/logger';
 import * as squareService from './square.service';
 import * as ghlService from './ghl.service';
 import { findBySquareId, createMapping } from '../db';
+
+const CHUNK_DAYS = 30; // Square API max is 31 days per request
+const TOTAL_DAYS = 90;
 
 export async function reconcile() {
   logger.info('Starting reconciliation...');
 
   try {
     const now = new Date();
-    const startAtMin = new Date(now.getTime() - 24 * 60 * 60_000).toISOString(); // 1 day ago
-    const startAtMax = new Date(now.getTime() + 90 * 24 * 60 * 60_000).toISOString(); // 90 days ahead
 
-    const bookings = await squareService.listRecentBookings(startAtMin, startAtMax);
+    // Fetch bookings in 30-day chunks (Square API limits to 31 days)
+    const allBookings: Booking[] = [];
+    const startOffset = -1; // 1 day ago
+    for (let offset = startOffset; offset < TOTAL_DAYS; offset += CHUNK_DAYS) {
+      const chunkStart = new Date(now.getTime() + offset * 24 * 60 * 60_000);
+      const chunkEnd = new Date(now.getTime() + Math.min(offset + CHUNK_DAYS, TOTAL_DAYS) * 24 * 60 * 60_000);
+      try {
+        const chunk = await squareService.listRecentBookings(chunkStart.toISOString(), chunkEnd.toISOString());
+        allBookings.push(...chunk);
+      } catch (error) {
+        logger.warn('Reconciliation: chunk failed', { offset, error });
+      }
+    }
 
     let synced = 0;
-    for (const booking of bookings) {
+    for (const booking of allBookings) {
       if (!booking.id) continue;
       if (booking.status === 'CANCELLED_BY_CUSTOMER' || booking.status === 'CANCELLED_BY_SELLER') continue;
 
@@ -51,7 +65,7 @@ export async function reconcile() {
       }
     }
 
-    logger.info(`Reconciliation complete: ${synced} bookings synced, ${bookings.length} total checked`);
+    logger.info(`Reconciliation complete: ${synced} bookings synced, ${allBookings.length} total checked`);
   } catch (error) {
     logger.error('Reconciliation failed', { error });
   }
