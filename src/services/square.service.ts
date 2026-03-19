@@ -21,20 +21,22 @@ export interface SquareBookingParams {
 export async function createBooking(params: SquareBookingParams) {
   logger.info('Creating Square booking', { startAt: params.startAt });
 
+  const booking: Record<string, any> = {
+    startAt: params.startAt,
+    locationId: config.square.locationId,
+    appointmentSegments: [
+      {
+        serviceVariationId: params.serviceVariationId,
+        serviceVariationVersion: BigInt(params.serviceVariationVersion),
+        teamMemberId: params.teamMemberId,
+      },
+    ],
+  };
+  if (params.customerId) booking.customerId = params.customerId;
+  if (params.customerNote) booking.customerNote = params.customerNote;
+
   const response = await client.bookings.create({
-    booking: {
-      startAt: params.startAt,
-      locationId: config.square.locationId,
-      appointmentSegments: [
-        {
-          serviceVariationId: params.serviceVariationId,
-          serviceVariationVersion: BigInt(params.serviceVariationVersion),
-          teamMemberId: params.teamMemberId,
-        },
-      ],
-      customerId: params.customerId,
-      customerNote: params.customerNote,
-    },
+    booking,
     idempotencyKey: `ghl-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   });
 
