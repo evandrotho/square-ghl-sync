@@ -98,16 +98,31 @@ export async function findOrCreateCustomer(email: string, name: string, phone?: 
   const givenName = nameParts[0] || '';
   const familyName = nameParts.slice(1).join(' ') || '';
 
-  const createResult = await client.customers.create({
-    givenName,
-    familyName,
-    emailAddress: email,
-    phoneNumber: phone,
-    idempotencyKey: `ghl-cust-${email}-${Date.now()}`,
-  });
-
-  logger.info('Created new Square customer', { customerId: createResult.customer?.id });
-  return createResult.customer;
+  // Try with phone number first, fallback without if phone is invalid
+  try {
+    const createResult = await client.customers.create({
+      givenName,
+      familyName,
+      emailAddress: email,
+      phoneNumber: phone || undefined,
+      idempotencyKey: `ghl-cust-${email}-${Date.now()}`,
+    });
+    logger.info('Created new Square customer', { customerId: createResult.customer?.id });
+    return createResult.customer;
+  } catch (error: any) {
+    if (error?.errors?.[0]?.code === 'INVALID_PHONE_NUMBER' && phone) {
+      logger.warn('Invalid phone number, creating customer without phone', { phone });
+      const createResult = await client.customers.create({
+        givenName,
+        familyName,
+        emailAddress: email,
+        idempotencyKey: `ghl-cust-${email}-${Date.now()}-nophone`,
+      });
+      logger.info('Created new Square customer (no phone)', { customerId: createResult.customer?.id });
+      return createResult.customer;
+    }
+    throw error;
+  }
 }
 
 export async function getServiceVariation(serviceVariationId: string) {
