@@ -21,4 +21,29 @@ router.get('/health', (_req, res) => {
   });
 });
 
+// Diagnostic endpoint — test Square API connection (temporary)
+router.get('/debug/test-square', async (_req, res) => {
+  try {
+    const squareService = await import('../services/square.service');
+    const bookings = await squareService.listRecentBookings(
+      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    );
+    res.json({
+      ok: true,
+      bookingsFound: bookings.length,
+      bookings: bookings.map(b => ({ id: b.id, startAt: b.startAt, status: b.status })),
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      ok: false,
+      message: error?.message || String(error),
+      statusCode: error?.statusCode,
+      body: error?.body,
+      errors: error?.errors,
+      name: error?.name,
+    });
+  }
+});
+
 export default router;
