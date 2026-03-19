@@ -6,7 +6,7 @@ import { logger } from '../utils/logger';
 const client = new SquareClient({
   token: config.square.accessToken,
   environment: SquareEnvironment.Production,
-  fetcher: fetch as any,
+  fetch: fetch as any,
 });
 
 export interface SquareBookingParams {
