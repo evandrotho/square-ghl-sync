@@ -40,8 +40,16 @@ export async function handleSquareWebhook(req: Request, res: Response) {
     }
 
     res.status(200).json({ ok: true });
-  } catch (error) {
-    logger.error('Error handling Square webhook', { error, bookingId, eventType });
+  } catch (error: any) {
+    logger.error('Error handling Square webhook', {
+      bookingId,
+      eventType,
+      message: error?.message || String(error),
+      stack: error?.stack,
+      statusCode: error?.statusCode,
+      body: error?.body,
+      errors: error?.errors,
+    });
     res.status(500).json({ error: 'Internal error' });
   }
 }
