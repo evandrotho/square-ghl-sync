@@ -51,4 +51,15 @@ router.get('/debug/test-square', async (_req, res) => {
   }
 });
 
+// Manual reconciliation trigger (temporary)
+router.post('/debug/reconcile', async (_req, res) => {
+  try {
+    const { reconcile } = await import('../services/reconciliation.service');
+    await reconcile();
+    res.json({ ok: true, message: 'Reconciliation completed' });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, message: error?.message || String(error) });
+  }
+});
+
 export default router;
