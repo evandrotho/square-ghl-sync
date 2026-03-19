@@ -32,7 +32,7 @@ router.post('/e2e-test', async (_req, res) => {
   let testCustomerId: string | undefined;
   try {
     const customer = await squareService.findOrCreateCustomer(
-      'e2e-test@square-ghl-sync.test',
+      'e2e-test@squaretest.com',
       'E2E Test Customer'
     );
     testCustomerId = customer?.id;

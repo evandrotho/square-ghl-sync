@@ -45,7 +45,7 @@ export async function handleGhlCreated(req: Request, res: Response) {
     }
 
     // Find or create customer in Square (required by Square Bookings API)
-    const customerEmail = contactEmail || `ghl-${appointmentId}@sync.placeholder`;
+    const customerEmail = contactEmail || `ghl-${appointmentId}@ghlsync.com`;
     const customer = await withRetry(
       () => squareService.findOrCreateCustomer(customerEmail, contactName, contactPhone),
       'Find/create Square customer'
@@ -150,7 +150,7 @@ export async function handleGhlUpdated(req: Request, res: Response) {
       const contactEmail = body.contact_email || body.email || '';
 
       if (startTime) {
-        const customerEmail = contactEmail || `ghl-${appointmentId}@sync.placeholder`;
+        const customerEmail = contactEmail || `ghl-${appointmentId}@ghlsync.com`;
         const customer = await squareService.findOrCreateCustomer(customerEmail, contactName);
         const customerId = customer?.id;
 
