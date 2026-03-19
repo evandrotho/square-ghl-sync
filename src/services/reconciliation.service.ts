@@ -8,8 +8,8 @@ export async function reconcile() {
 
   try {
     const now = new Date();
-    const startAtMin = new Date(now.getTime() - 30 * 60_000).toISOString(); // 30 min ago
-    const startAtMax = new Date(now.getTime() + 7 * 24 * 60 * 60_000).toISOString(); // 7 days ahead
+    const startAtMin = new Date(now.getTime() - 24 * 60 * 60_000).toISOString(); // 1 day ago
+    const startAtMax = new Date(now.getTime() + 90 * 24 * 60 * 60_000).toISOString(); // 90 days ahead
 
     const bookings = await squareService.listRecentBookings(startAtMin, startAtMax);
 
