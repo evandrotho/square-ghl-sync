@@ -7,6 +7,9 @@ import { reconcile } from './services/reconciliation.service';
 
 const app = express();
 
+// Trust reverse proxy (Render terminates SSL at proxy level)
+app.set('trust proxy', true);
+
 // Capture raw body for Square webhook signature verification
 app.use(express.json({
   verify: (req: any, _res, buf) => {
